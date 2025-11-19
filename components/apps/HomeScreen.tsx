@@ -1,18 +1,39 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DesktopItem } from '../../types';
+import { FolderPlus, Image, ArrowDownAZ } from 'lucide-react';
 
 interface HomeScreenProps {
     items: (DesktopItem | null)[];
     onLaunch: (item: DesktopItem) => void;
+    onCreateFolder: () => void;
+    onSort: () => void;
+    onWallpaper: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ items, onLaunch }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ items, onLaunch, onCreateFolder, onSort, onWallpaper }) => {
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
+
+    const handleContextMenu = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY });
+    };
+
     return (
-        <div className="h-full w-full p-8 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-6 content-start justify-items-center overflow-y-auto overscroll-y-contain">
+        <div 
+            className="h-full w-full p-8 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-6 content-start justify-items-center overflow-y-auto overscroll-y-contain relative"
+            onContextMenu={handleContextMenu}
+        >
             {items.map((item, index) => {
                 if (!item) {
                     // Render an invisible placeholder to maintain grid gap
@@ -21,8 +42,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ items, onLaunch }) => {
                 return (
                     <button
                         key={item.id}
-                        onClick={() => onLaunch(item)}
-                        className="flex flex-col items-center justify-start gap-3 p-2 w-28 rounded-xl hover:bg-white/10 transition-colors group"
+                        onClick={(e) => { e.stopPropagation(); onLaunch(item); }}
+                        onContextMenu={(e) => {
+                             // Optional: Prevent desktop context menu when right-clicking an icon, 
+                             // or allow it but maybe with different options? 
+                             // For now, let's stop propagation to keep it simple (only desktop bg triggers this menu)
+                             e.stopPropagation(); 
+                        }}
+                        className="flex flex-col items-center justify-start gap-3 p-2 w-28 rounded-xl hover:bg-white/10 transition-colors group z-10"
                         title={item.name}
                     >
                         {/* Gentler 3D Effect: Reduced shadow opacity/spread, subtler inner shadows, lighter border */}
@@ -38,6 +65,35 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ items, onLaunch }) => {
                     </button>
                 );
             })}
+
+            {/* Context Menu */}
+            {contextMenu && (
+                <div 
+                    className="absolute bg-zinc-800/90 backdrop-blur-md border border-zinc-700 shadow-2xl rounded-xl py-1.5 w-56 z-50 animate-in fade-in zoom-in-95 duration-100 origin-top-left"
+                    style={{ top: contextMenu.y, left: contextMenu.x }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button 
+                        onClick={() => { onCreateFolder(); setContextMenu(null); }}
+                        className="w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-blue-600 hover:text-white transition-colors flex items-center gap-3"
+                    >
+                        <FolderPlus size={16} /> New Folder
+                    </button>
+                    <button 
+                        onClick={() => { onWallpaper(); setContextMenu(null); }}
+                        className="w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-blue-600 hover:text-white transition-colors flex items-center gap-3"
+                    >
+                        <Image size={16} /> Create Wallpaper
+                    </button>
+                    <div className="h-px bg-zinc-700 my-1 mx-2" />
+                    <button 
+                        onClick={() => { onSort(); setContextMenu(null); }}
+                        className="w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-blue-600 hover:text-white transition-colors flex items-center gap-3"
+                    >
+                        <ArrowDownAZ size={16} /> Sort By Name
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

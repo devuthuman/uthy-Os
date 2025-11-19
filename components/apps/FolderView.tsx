@@ -2,48 +2,125 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
 */
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DesktopItem } from '../../types';
-import { FileText } from 'lucide-react';
+import { FileText, FolderPlus, Folder } from 'lucide-react';
 
 interface FolderViewProps {
     folder: DesktopItem;
+    onRename: (id: string, name: string) => void;
+    onCreateFolder: () => void;
 }
 
-export const FolderView: React.FC<FolderViewProps> = ({ folder }) => {
+export const FolderView: React.FC<FolderViewProps> = ({ folder, onRename, onCreateFolder }) => {
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editValue, setEditValue] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (editingId && inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    }, [editingId]);
+
+    const startEditing = (e: React.MouseEvent, item: DesktopItem) => {
+        e.stopPropagation();
+        setEditingId(item.id);
+        setEditValue(item.name);
+    };
+
+    const commitRename = () => {
+        if (editingId && editValue.trim()) {
+            onRename(editingId, editValue.trim());
+        }
+        setEditingId(null);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            commitRename();
+        } else if (e.key === 'Escape') {
+            setEditingId(null);
+        }
+    };
+
     return (
-        <div className="h-full w-full bg-zinc-50 flex flex-col text-zinc-800 p-4 overflow-y-auto overscroll-y-contain">
-             {/* Simulated random text */}
+        <div className="h-full w-full bg-zinc-50 flex flex-col text-zinc-800 p-4 overflow-y-auto overscroll-y-contain" onClick={() => setEditingId(null)}>
+            {/* Header / Toolbar */}
+            <div className="flex items-center justify-between mb-4 p-3 bg-white border border-zinc-200 rounded-xl shadow-sm">
+                <div className="flex items-center gap-2 text-zinc-600">
+                    <Folder size={18} className="text-blue-500"/>
+                    <span className="font-bold text-sm">{folder.name}</span>
+                </div>
+                <button 
+                    onClick={(e) => { e.stopPropagation(); onCreateFolder(); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg text-xs font-medium transition-colors"
+                >
+                    <FolderPlus size={14} />
+                    <span>New Folder</span>
+                </button>
+            </div>
+
+            {/* Info Box */}
             <div className="mb-6 p-4 bg-white border border-zinc-200 rounded-lg shadow-sm">
                 <div className="flex items-center gap-2 mb-2 text-zinc-500 font-medium uppercase text-[10px] tracking-wider">
                     <FileText size={14} /> README.txt
                 </div>
                 <p className="text-zinc-600 text-sm leading-relaxed">
-                    This folder contains project assets and documentation. 
-                    Ensure all sensitive data is encrypted before sharing.
-                    Updated: Oct 26, 2023.
+                    {folder.contents && folder.contents.length > 0 
+                        ? `Contains ${folder.contents.length} item(s). Click an item's name to rename it.` 
+                        : "This folder is empty. Use the 'New Folder' button to create contents."}
                 </p>
             </div>
 
             <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
-                Contents ({folder.contents?.length || 0})
+                Contents
             </h3>
             
-            <div className="grid grid-cols-4 gap-2 content-start">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-4 content-start">
                 {folder.contents?.map(item => (
-                    <div key={item.id} className="flex flex-col items-center gap-1.5 p-2 hover:bg-zinc-200/50 rounded-lg cursor-pointer transition-colors group">
-                        {/* Gentler 3D effect for small icons */}
-                        <div className={`relative w-12 h-12 ${item.bgColor || 'bg-zinc-500'} rounded-xl flex items-center justify-center text-white shadow-[0_1px_3px_-1px_rgba(0,0,0,0.2),inset_0_1px_0.5px_rgba(255,255,255,0.2),inset_0_-1px_2px_rgba(0,0,0,0.1)] group-hover:scale-105 transition-transform duration-200 ease-out border-t border-white/10 overflow-hidden`}>
-                             {/* Gentler Glossy Overlay (Scaled down) */}
-                            <div className="absolute inset-0 bg-[radial-gradient(at_top_left,_rgba(255,255,255,0.2)_0%,_transparent_70%)] pointer-events-none" />
-                            <item.icon size={24} className="relative z-10 drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]" />
+                    <div key={item.id} className="flex flex-col items-center gap-2 p-2 hover:bg-zinc-200/50 rounded-xl cursor-pointer transition-colors group">
+                        {/* Icon */}
+                        <div 
+                            onClick={(e) => { 
+                                // Assuming double click or single click logic is handled by parent via passing an onLaunch or similar, 
+                                // but here we just select/focus. For now, let's just stop propagation to prevent clearing selection
+                                e.stopPropagation();
+                            }}
+                            className={`relative w-14 h-14 ${item.bgColor || 'bg-zinc-500'} rounded-2xl flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform duration-200 ease-out border-t border-white/20 overflow-hidden`}
+                        >
+                             <div className="absolute inset-0 bg-[radial-gradient(at_top_left,_rgba(255,255,255,0.2)_0%,_transparent_70%)] pointer-events-none" />
+                            <item.icon size={28} className="relative z-10 drop-shadow-sm" />
                         </div>
-                        <span className="text-xs text-center truncate w-full font-medium text-zinc-700 group-hover:text-zinc-900">{item.name}</span>
+                        
+                        {/* Rename Input or Label */}
+                        {editingId === item.id ? (
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onBlur={commitRename}
+                                onKeyDown={handleKeyDown}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full text-xs text-center bg-white ring-2 ring-blue-500 rounded px-1 py-0.5 focus:outline-none shadow-lg z-20 text-zinc-900 min-w-[80px]"
+                            />
+                        ) : (
+                            <span 
+                                onClick={(e) => startEditing(e, item)}
+                                className="text-xs text-center truncate w-full font-medium text-zinc-700 group-hover:text-zinc-900 hover:bg-white hover:shadow-sm hover:ring-1 ring-zinc-200 rounded px-1.5 py-0.5 cursor-text transition-all select-none"
+                                title={item.name}
+                            >
+                                {item.name}
+                            </span>
+                        )}
                     </div>
                 ))}
                 {(!folder.contents || folder.contents.length === 0) && (
-                     <div className="col-span-full text-zinc-400 italic py-4 text-center text-sm">
-                        Empty
+                     <div className="col-span-full flex flex-col items-center justify-center py-12 text-zinc-400 gap-2 border-2 border-dashed border-zinc-200 rounded-xl">
+                        <Folder size={32} className="opacity-20"/>
+                        <span className="text-sm font-medium">Folder is empty</span>
                     </div>
                 )}
             </div>

@@ -422,6 +422,7 @@ export const App = () => {
                                     folder={folder} 
                                     onRename={handleRenameItem}
                                     onCreateFolder={() => handleCreateFolder(folder.id)}
+                                    onLaunch={handleLaunch}
                                 />
                             );
                         }
